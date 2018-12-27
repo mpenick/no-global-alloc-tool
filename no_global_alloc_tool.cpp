@@ -14,6 +14,10 @@ using namespace clang::ast_matchers;
 namespace {
 StatementMatcher CXXNewMatcher = cxxNewExpr().bind("useNew");
 StatementMatcher CXXDeleteMatcher = cxxDeleteExpr().bind("useDelete");
+StatementMatcher MallocMatcher = callExpr(callee(functionDecl(hasName("malloc"),
+                                                              hasParameter(0, hasType(asString("size_t")))))).bind("useMalloc");
+StatementMatcher FreeMatcher = callExpr(callee(functionDecl(hasName("free"),
+                                                            hasParameter(0, hasType(asString("void *")))))).bind("useFree");
 } // namespace
 
 class NoGlobalAllocPrinter : public MatchFinder::MatchCallback {
@@ -55,6 +59,24 @@ public :
             << DeleteFuncDecl->getLocation().printToString(SourceManager);
       }
     }
+
+    const auto *MallocExpr = Result.Nodes.getNodeAs<CallExpr>("useMalloc");
+    if (MallocExpr &&
+        !SourceManager.isInSystemHeader(MallocExpr->getLocStart()) &&
+        MallocExpr->getCalleeDecl() &&
+        SourceManager.isInSystemHeader(MallocExpr->getCalleeDecl()->getLocation())) {
+      diag(MallocExpr->getLocStart(), "Using `malloc()` from %0", DiagnosticsEngine)
+          << MallocExpr->getCalleeDecl()->getLocation().printToString(SourceManager);
+    }
+
+    const auto *FreeExpr = Result.Nodes.getNodeAs<CallExpr>("useFree");
+    if (FreeExpr &&
+        !SourceManager.isInSystemHeader(FreeExpr->getLocStart()) &&
+        FreeExpr->getCalleeDecl() &&
+        SourceManager.isInSystemHeader(FreeExpr->getCalleeDecl()->getLocation())) {
+      diag(FreeExpr->getLocStart(), "Using `free()` from %0", DiagnosticsEngine)
+          << FreeExpr->getCalleeDecl()->getLocation().printToString(SourceManager);
+    }
   }
 
   DiagnosticBuilder diag(SourceLocation Loc,
@@ -88,6 +110,8 @@ int main(int argc, const char **argv) {
   MatchFinder Finder;
   Finder.addMatcher(CXXNewMatcher, &Printer);
   Finder.addMatcher(CXXDeleteMatcher, &Printer);
+  Finder.addMatcher(MallocMatcher, &Printer);
+  Finder.addMatcher(FreeMatcher, &Printer);
 
   return Tool.run(newFrontendActionFactory(&Finder).get());
 }
