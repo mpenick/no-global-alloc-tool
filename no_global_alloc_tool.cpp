@@ -25,32 +25,34 @@ public :
 
     const auto *NewExpr = Result.Nodes.getNodeAs<CXXNewExpr>("useNew");
     if (NewExpr &&
-        !Context.getSourceManager().isInSystemHeader(NewExpr->getLocStart()) && // Not in system headers
+        !SourceManager.isInSystemHeader(NewExpr->getLocStart()) && // Not in system headers
         NewExpr->getNumPlacementArgs() == 0) { // Not placement new
       FunctionDecl* NewFuncDecl = NewExpr->getOperatorNew();
       if (NewExpr->isGlobalNew()) {
         diag(NewExpr->getLocStart(), "Using global `::operator new%0()`", DiagnosticsEngine)
             << (NewExpr->isArray() ? "[]" : "");
       } else if(NewFuncDecl &&
-                Context.getSourceManager().isInSystemHeader(NewFuncDecl->getLocation())) {
+                SourceManager.isInSystemHeader(NewFuncDecl->getLocation())) {
         diag(NewExpr->getLocStart(), "Using `operator new%0()` from %1", DiagnosticsEngine)
             << (NewExpr->isArray() ? "[]" : "")
-            << NewFuncDecl->getLocation().printToString(Context.getSourceManager());
+            << NewFuncDecl->getLocation().printToString(SourceManager);
       }
     }
 
     const auto *DeleteExpr = Result.Nodes.getNodeAs<CXXDeleteExpr>("useDelete");
     if (DeleteExpr &&
-        !Context.getSourceManager().isInSystemHeader(DeleteExpr->getLocStart())) { // Not in system headers
+        !DeleteExpr->getDestroyedType().isNull() &&
+        !DeleteExpr->getDestroyedType()->isVoidType() &&
+        !SourceManager.isInSystemHeader(DeleteExpr->getLocStart())) { // Not in system headers
       FunctionDecl* DeleteFuncDecl = DeleteExpr->getOperatorDelete();
       if (DeleteExpr->isGlobalDelete()) {
         diag(DeleteExpr->getLocStart(), "Using global `::operator delete%0()`", DiagnosticsEngine)
             << (DeleteExpr->isArrayForm() ? "[]" : "");
       } else if(DeleteFuncDecl &&
-         Context.getSourceManager().isInSystemHeader(DeleteFuncDecl->getLocation())) {
+                SourceManager.isInSystemHeader(DeleteFuncDecl->getLocation())) {
         diag(DeleteExpr->getLocStart(), "Using `operator delete%0()` from %1", DiagnosticsEngine)
             << (DeleteExpr->isArrayForm()? "[]" : "")
-            << DeleteFuncDecl->getLocation().printToString(Context.getSourceManager());
+            << DeleteFuncDecl->getLocation().printToString(SourceManager);
       }
     }
   }
