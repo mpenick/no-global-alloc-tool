@@ -1,3 +1,9 @@
+This is a tool can be used to detect usage of the global or system versions of
+`operator new()` and `operator delete()` (and their allocating variants). It
+will support `malloc()` and `free()` in the future. This tool is useful for
+finding and preventing calls that go around a library's or application's custom
+allocator.
+
 # To run
 
 ```
