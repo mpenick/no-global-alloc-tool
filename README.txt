@@ -19,6 +19,14 @@ In file included from .../Code/cpp-driver/src/host.hpp:22:
 
 *Note:* Includes and other compiler flags can be specified after `--`
 
+# To run in a cmake project
+
+```
+mkdir build && cd build
+cmake -DCMAKE_CXX_CLANG_TIDY=/path/to/tool/no-global-alloc-tool ..
+make
+```
+
 # Dependencies
 
 Requires LLVM and clang (w/ clang's libtooling)
